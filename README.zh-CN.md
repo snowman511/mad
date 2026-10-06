@@ -30,15 +30,31 @@ Python ≥ 3.10，核心零第三方依赖（SQLite 用标准库）。
 
 ## 60 秒跑通
 
-```bash
-python examples/run_demo.py
-```
-
-会打印黑板全文、永久负结果（DEAD_END/COUNTEREXAMPLE）、验证判决，以及 `examples/demo_report.json`。
+**用自然语言任务直接开一场辩论**——描述要讨论什么，选好项目文件夹和阵容，`mad init` 生成其余一切：
 
 ```bash
-python -m pytest -q
+mad init   --task "讨论记忆化是否能加速稀疏图查询"   --dir ./my-debate --preset minimal --runtime mock
+mad run ./my-debate/session.json --board ./my-debate/board.sqlite   --memory ./my-debate/memory.json -o ./my-debate/report.json
 ```
+
+`--preset` 选阵容：`minimal`（3 agents：proposer / skeptic / modeler）、`standard`（5：+ experimenter / reviewer）、`full`（7：+ literature scout / builder）。也可用 `--roles` 自行点名。
+
+```bash
+python examples/run_demo.py   # 纯离线 mock 辩论
+python -m pytest -q           # 58 个测试
+```
+
+### 三种验证模式——请诚实选择
+
+对抗循环（skeptic + 挑战窗口 + 不可删黑板）在所有模式下都提供*结构性*严谨；区别在于主张是否还面对*确定性*闸门：
+
+| 模式 | `--verifier` | 含义 | 适用 |
+|---|---|---|---|
+| **有闸** | `script:<命令>` | 每个主张被送进你的脚本，必须输出 `{"passed": bool}` | 任务有可检验输出（代码/数学/数据） |
+| **无闸** | `null`（默认） | 仅对抗审查——是结构化辩论，**不是真理机器** | 开放式讨论、头脑风暴、批判性审查 |
+| ~~LLM 裁判~~ | — | 刻意**不内置**：裁判可以被说服，闸门不会 | — |
+
+写一个闸门就是一个小脚本（见 `ScriptVerifier`）——这正是框架的核心信念：agent 说得再自信也不算数，客观闸门才算数。
 
 ## Web 看板
 

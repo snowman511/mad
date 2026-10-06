@@ -61,12 +61,39 @@ The result is a research loop where the *process* leaves an auditable trail: 344
 
 ```bash
 pip install -e ".[dev]"      # Python ≥ 3.10, zero third-party deps at core
-python examples/run_demo.py  # full mock debate: blackboard, verdicts, negative results
-python -m pytest -q          # 52 tests
 ```
 
-The demo runs an entirely offline debate (mock runtimes) on a shortest-path task and
-prints the blackboard, the verification verdicts, and the permanent negative results.
+**Start a debate from a natural-language task** — describe what to discuss, pick a
+project folder and an agent lineup, and `mad init` generates everything else:
+
+```bash
+mad init   --task "Discuss whether memoization helps sparse graph lookups"   --dir ./my-debate --preset minimal --runtime mock
+mad run ./my-debate/session.json --board ./my-debate/board.sqlite   --memory ./my-debate/memory.json -o ./my-debate/report.json
+```
+
+`--preset` picks the lineup: `minimal` (3 agents: proposer / skeptic / modeler),
+`standard` (5: + experimenter / reviewer), `full` (7: + literature scout / builder).
+Or list your own with `--roles`. Prefer to watch first?
+
+```bash
+python examples/run_demo.py  # entirely offline mock debate
+python -m pytest -q          # 58 tests
+```
+
+### Three verification modes — choose honestly
+
+The adversarial loop (skeptic + challenge windows + an undeletable blackboard) provides
+*structural* rigor in every mode. What differs is whether claims also face a
+*deterministic* gate:
+
+| mode | `--verifier` | what it means | use when |
+|---|---|---|---|
+| **gated** | `script:<command>` | every claim is piped to your script; it must print `{"passed": bool}` | the task has checkable outputs (code, math, data) |
+| **gate-less** | `null` (default) | adversarial review only — a structured debate, **not a truth machine** | open-ended discussion, brainstorming, critique |
+| ~~LLM-as-judge~~ | — | deliberately **not built in**: a judge can be argued with, a gate cannot | — |
+
+Writing a gate is one small script (see `ScriptVerifier`), and it is the framework's
+core belief: however confident an agent sounds, only the objective gate counts.
 
 ## Using real LLMs
 

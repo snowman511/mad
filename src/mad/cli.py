@@ -48,6 +48,7 @@ _ROLE_FACTORIES = {
     "experimenter": experimenter,
     "reviewer": reviewer,
     "benchmark_proposer": benchmark_proposer,
+    "proposer": benchmark_proposer,  # friendly alias
     "literature_scout": literature_scout,
     "builder": builder,
 }
@@ -71,6 +72,29 @@ def _build_runtime(spec: dict) -> LLMRuntime:
             base_url=spec.get("base_url", "https://api.openai.com/v1"),
         )
     raise SystemExit(f"unknown runtime kind: {kind}")
+
+
+
+#: role presets: how many agents, and which combination works well together
+ROLE_PRESETS = {
+    "minimal": ["proposer", "skeptic", "modeler"],
+    "standard": ["proposer", "skeptic", "modeler", "experimenter", "reviewer"],
+    "full": ["proposer", "skeptic", "modeler", "experimenter", "reviewer",
+             "literature_scout", "builder"],
+}
+
+
+def _parse_verifier(spec: str) -> dict:
+    """'null' -> gate-less debate; 'script:<cmd>' -> run <cmd> with a JSON claim
+    on stdin; the command must print {"passed": bool, ...} and exit 0/1."""
+    if spec == "null":
+        return {"kind": "null"}
+    if spec.startswith("script:"):
+        return {"kind": "script", "command": spec[len("script:"):]}
+    raise SystemExit(
+        f"unknown verifier {spec!r}: use 'null' (gate-less debate) or "
+        f"'script:<command>' (deterministic gate)"
+    )
 
 
 def _build_verifier(spec: dict | None) -> Verifier:
@@ -148,6 +172,58 @@ def run_from_config(
     return payload
 
 
+def cmd_init(args) -> int:
+    """Generate a session config + project folder from a natural-language task."""
+    roles = (
+        [r.strip() for r in args.roles.split(",") if r.strip()]
+        if args.roles else ROLE_PRESETS[args.preset]
+    )
+    unknown = [r for r in roles if r not in _ROLE_FACTORIES]
+    if unknown:
+        raise SystemExit(f"unknown role(s): {unknown}. choose from {sorted(_ROLE_FACTORIES)}")
+
+    runtimes = {
+        "mock": {"kind": "mock"},
+        "claude": {"kind": "local_cli", "agent": "claude"},
+        "kimi": {"kind": "local_cli", "agent": "kimi"},
+        "openai": {"kind": "openai_compatible", **({"model": args.model} if args.model else {})},
+    }
+    verifier = _parse_verifier(args.verifier)
+    cfg = {
+        "task": args.task.strip(),
+        "roles": roles,
+        "max_rounds": args.rounds,
+        "max_messages": args.max_messages,
+        "challenge_grace_rounds": 2,
+        "stall_rounds": 3,
+        # gate-less mode: the adversarial loop is the rigor; no gate to require
+        "require_verifier_gate": verifier.get("kind") != "null",
+        "runtime": runtimes[args.runtime],
+        "verifier": verifier,
+    }
+    args.dir.mkdir(parents=True, exist_ok=True)
+    cfg_path = args.dir / "session.json"
+    cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+    mem_path = args.dir / "memory.json"
+    if not mem_path.exists():
+        mem_path.write_text(json.dumps({"items": []}, ensure_ascii=False, indent=1),
+                            encoding="utf-8")
+
+    board = args.dir / "board.sqlite"
+    mode_note = (
+        "gate-less debate: rigor comes from the adversarial loop (no mechanical verification)"
+        if verifier["kind"] == "null" else
+        "gated mode: every claim is re-measured by your script"
+    )
+    print(f"session config -> {cfg_path}")
+    print(f"memory seed    -> {mem_path}")
+    print(f"mode           : {mode_note}")
+    print(f"agents ({len(roles)}): {', '.join(roles)}")
+    print("run it with    :")
+    print(f"  mad run {cfg_path} --board {board} --memory {mem_path} -o {args.dir / 'report.json'}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="mad", description="Multi-Agent Discussion runner")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -166,7 +242,30 @@ def main(argv: list[str] | None = None) -> int:
     p_demo.add_argument("--rounds", type=int, default=4)
     p_demo.add_argument("-o", "--output", type=Path)
 
+    p_init = sub.add_parser(
+        "init", help="generate a session config in a project folder from a natural-language task"
+    )
+    p_init.add_argument("--task", required=True,
+                        help="natural-language description of what to discuss/solve")
+    p_init.add_argument("--dir", default=Path("."), type=Path,
+                        help="project folder: session.json, memory.json and board.sqlite live here")
+    p_init.add_argument("--preset", choices=sorted(ROLE_PRESETS), default="standard",
+                        help="agent lineup preset (how many agents and which roles)")
+    p_init.add_argument("--roles", default=None,
+                        help="comma list of roles overriding the preset, e.g. proposer,skeptic,modeler")
+    p_init.add_argument("--runtime", choices=["mock", "claude", "kimi", "openai"], default="mock",
+                        help="agent backend (mock = offline, no API needed)")
+    p_init.add_argument("--model", default=None, help="model name for openai-compatible runtimes")
+    p_init.add_argument("--rounds", type=int, default=12, help="max discussion rounds")
+    p_init.add_argument("--max-messages", type=int, default=120, help="hard budget on messages")
+    p_init.add_argument("--verifier", default="null",
+                        help="'null' = gate-less debate; 'script:<command>' = deterministic gate "
+                             "(command receives the claim JSON on stdin, prints {\"passed\": bool})")
+
     args = parser.parse_args(argv)
+
+    if args.cmd == "init":
+        return cmd_init(args)
 
     if args.cmd == "demo":
         cfg = {

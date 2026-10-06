@@ -28,6 +28,8 @@ pip install -e ".[llm]"
 
 Python ≥ 3.10，核心零第三方依赖（SQLite 用标准库）。
 
+![mad 看板](docs/images/board_main.png)
+
 ## 60 秒跑通
 
 **用自然语言任务直接开一场辩论**——描述要讨论什么，选好项目文件夹和阵容，`mad init` 生成其余一切：

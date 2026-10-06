@@ -68,6 +68,30 @@ python serve.py --report ./my-debate/report.json --port 8765 --open
 
 ---
 
+### A quick tour
+
+The dashboard after loading a debate — task bar, live stats, the verification banner
+(green = passed), the debate-history sidebar (left), the full timeline (center), and the
+permanent negative-results wall (right). The bottom-left panel is **inject your own
+thoughts**: anything you write lands on the shared blackboard as author `human`, and the
+next agent turn sees it.
+
+![mad dashboard — debate board](images/board_main.png)
+
+Starting a new debate is a form, not a config file: topic, roles, rounds, and the
+verification mode:
+
+![new debate form](images/session_form.png)
+
+Injecting a human note — it appears on the timeline instantly (bottom-right toast:
+"已插入黑板，下一个 agent 立即可见" = *landed on the blackboard, visible to the next
+agent immediately*):
+
+![human injection](images/inject_human.png)
+
+---
+---
+
 ## 2. Understanding a debate transcript
 
 Real output from `examples/run_demo.py` (offline mock):

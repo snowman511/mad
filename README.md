@@ -7,6 +7,8 @@
 
 [中文文档](README.zh-CN.md)
 
+![mad dashboard](docs/images/board_main.png)
+
 ---
 
 ## Why

@@ -200,6 +200,16 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/session/stop":
                 stopped = MANAGER.stop((body or {}).get("id"))
                 return self._json({"ok": True, "stopped": stopped})
+            if path == "/api/inject":
+                # human-in-the-loop: post the operator's/participant's thought
+                # straight onto a session's blackboard; the next agent turn
+                # re-observes and sees it.
+                return self._json(MANAGER.inject(
+                    (body or {}).get("id"),
+                    (body or {}).get("body", ""),
+                    tag=(body or {}).get("tag", "NOTE"),
+                    author=(body or {}).get("author", "human"),
+                ))
         except Exception as exc:
             return self._json({"ok": False, "error": str(exc)}, status=400)
         self.send_error(404, "Not Found")

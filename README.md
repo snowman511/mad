@@ -106,6 +106,19 @@ Point roles at local agent CLIs (Claude Code / Kimi) or OpenAI-compatible endpoi
 Tool policies are enforced at the CLI's own permission layer where available
 (e.g. `--allowedTools` for Claude Code), with a sandbox working directory for coding agents.
 
+## Fully web-driven (v0.3)
+
+Open `python serve.py` and never touch a shell again:
+
+- **Debate history sidebar** — every debate listed with status and last activity;
+  click to switch, `＋ 新辩论` to start a new one from a natural-language topic;
+- **Live new-session form** — topic, agent lineup (3/5/7 presets), rounds, and the
+  verification mode, all from the browser;
+- **Inject your own thoughts mid-debate** — the human participates as an equal:
+  your note lands on the shared blackboard immediately, the next agent turn sees it,
+  and it is subject to the same adversarial review as every agent post;
+- **Pause & resume** — stop at any time, resume later from the same blackboard.
+
 ## Battle-tested
 
 The framework drove a **six-day, 344-round multi-agent campaign** on a wearable-sensor

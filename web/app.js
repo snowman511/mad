@@ -19,6 +19,7 @@
     sessionPoll: null,
     // multi-session: null = latest session
     sessionId: null,
+    lastConfig: null,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -290,6 +291,9 @@
   }
 
   function applySession(data) {
+    state.lastConfig = data.session.config || null;
+    const rb = $("btn-resume");
+    if (rb) rb.hidden = data.status === "running";
     state.report = {
       board: data.board,
       task: data.session.task,
@@ -384,15 +388,107 @@
       const res = await fetch("/api/sessions", { cache: "no-store" });
       if (res.ok) sessions = (await res.json()).sessions || [];
     } catch (_) { /* offline demo */ }
-    const options = [`<option value="">最新会话</option>`].concat(
-      sessions.map(
-        (s) =>
-          `<option value="${esc(s.id)}" ${s.id === state.sessionId ? "selected" : ""}>` +
-          `${esc(s.id)} · ${esc(sessionStatusLabel(s.status))} · ${esc((s.task || "").slice(0, 32))}</option>`
-      )
+    renderDebates(sessions);
+    picker.hidden = true; // superseded by the debates sidebar
+  }
+
+  function relTime(iso) {
+    if (!iso) return "";
+    const t = new Date(iso).getTime();
+    if (isNaN(t)) return "";
+    const m = Math.round((Date.now() - t) / 60000);
+    if (m < 1) return "刚刚";
+    if (m < 60) return m + " 分钟前";
+    const h = Math.round(m / 60);
+    if (h < 24) return h + " 小时前";
+    return Math.round(h / 24) + " 天前";
+  }
+
+  function renderDebates(sessions) {
+    const list = $("debate-list");
+    if (!list) return;
+    if (!sessions.length) {
+      list.innerHTML = '<div class="debate-empty">还没有辩论<br/>点「＋ 新辩论」开一场</div>';
+      return;
+    }
+    const rank = { running: 0, stopping: 1, stopped: 2, done: 3, error: 4 };
+    const sorted = [...sessions].sort(
+      (a, b) =>
+        ((rank[a.status] ?? 9) - (rank[b.status] ?? 9)) ||
+        (b.created_at || "").localeCompare(a.created_at || "")
     );
-    picker.innerHTML = options.join("");
-    picker.hidden = sessions.length === 0;
+    const active = state.sessionId || (sorted[0] && sorted[0].id) || null;
+    let html = "";
+    for (const s of sorted) {
+      const dot = s.status === "running" ? "run" : s.status === "error" ? "err" : "off";
+      html +=
+        '<div class="debate-item ' + (s.id === active ? "active" : "") + '" data-id="' + esc(s.id) + '">' +
+        '<div class="di-top"><span class="di-dot ' + dot + '"></span>' +
+        '<span class="di-time">' + esc(relTime(s.created_at)) + "</span></div>" +
+        '<div class="di-task">' + esc((s.task || "（无任务）").slice(0, 60)) + "</div>" +
+        '<div class="di-meta">' + esc(sessionStatusLabel(s.status)) +
+        (s.progress ? " · " + esc(s.progress) : "") + "</div></div>";
+    }
+    list.innerHTML = html;
+    list.querySelectorAll(".debate-item").forEach((el) => {
+      el.addEventListener("click", () => selectDebate(el.dataset.id));
+    });
+  }
+
+  function selectDebate(id) {
+    state.sessionId = id || null;
+    if (state.sessionPoll) {
+      clearInterval(state.sessionPoll);
+      state.sessionPoll = null;
+    }
+    loadData();
+    refreshSessions();
+  }
+
+  async function injectThought() {
+    const body = $("inject-body").value.trim();
+    if (!body) {
+      toast("写点内容再插入");
+      return;
+    }
+    const tag = $("inject-tag") ? $("inject-tag").value : "NOTE";
+    try {
+      const res = await fetch("/api/inject", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: state.sessionId, body, tag }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        toast(data.error || "插入失败");
+        return;
+      }
+      $("inject-body").value = "";
+      toast("已插入黑板，下一个 agent 立即可见");
+      loadData();
+    } catch (e) {
+      toast("插入失败：" + e.message);
+    }
+  }
+
+  async function resumeSession() {
+    const cfg = state.lastConfig || {};
+    try {
+      const res = await fetch("/api/session/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(Object.assign({}, cfg, { resume: true })),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        toast(data.error || "恢复失败");
+        return;
+      }
+      toast("辩论已恢复");
+      refreshSessions().then(startPolling);
+    } catch (e) {
+      toast("恢复失败：" + e.message);
+    }
   }
 
   function render() {
@@ -640,6 +736,11 @@
   });
 
   // modals
+  $("btn-new-debate").addEventListener("click", () => {
+    openModal("session-modal");
+  });
+  $("btn-inject").addEventListener("click", injectThought);
+  $("btn-resume").addEventListener("click", resumeSession);
   $("btn-new-session").addEventListener("click", () => {
     renderRuntimeSummary();
     openModal("session-modal");

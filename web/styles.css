@@ -114,7 +114,7 @@ body {
 
 /* ---------- layout ---------- */
 .layout {
-  display: grid; grid-template-columns: 220px 1fr 300px; gap: 12px;
+  display: grid; grid-template-columns: 190px 220px 1fr 300px; gap: 12px;
   align-items: start;
 }
 .sidebar, .right { display: flex; flex-direction: column; gap: 12px; }
@@ -422,3 +422,28 @@ body {
 
 /* fix: .field 泄漏的 flex-direction: column 会把 check-line 的复选框和标签拆开 */
 .check-line { flex-direction: row; }
+
+/* ---------------- debates sidebar (v0.3) ---------------- */
+.debates { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.debate-list { display: flex; flex-direction: column; gap: 6px; max-height: 460px; overflow-y: auto; }
+.debate-item { border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.debate-item:hover { border-color: rgba(255,255,255,.22); }
+.debate-item.active { border-color: #4f8ef7; background: rgba(79,142,247,.08); }
+.di-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.di-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.di-dot.run { background: #3ddc84; }
+.di-dot.off { background: #8a8f98; }
+.di-dot.err { background: #ff5c5c; }
+.di-time { font-size: 11px; color: #8a8f98; }
+.di-task { font-size: 12.5px; line-height: 1.35; color: #d6d9de; margin-bottom: 4px; word-break: break-word; }
+.di-meta { font-size: 11px; color: #8a8f98; }
+.debate-empty { font-size: 12px; color: #8a8f98; text-align: center; padding: 12px 0; }
+.wide { width: 100%; margin-bottom: 8px; }
+#inject-body { width: 100%; resize: vertical; margin-bottom: 8px; }
+.inject-row { display: flex; gap: 8px; }
+.inject-row .rp-select { flex: 0 0 auto; }
+.inject-row .btn { flex: 1; }
+
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 1fr; }
+}

@@ -51,6 +51,7 @@ _ROLE_FACTORIES: dict[str, Callable[[], Any]] = {
     "experimenter": experimenter,
     "reviewer": reviewer,
     "benchmark_proposer": benchmark_proposer,
+    "proposer": benchmark_proposer,  # friendly alias (matches cli.py presets)
     "literature_scout": literature_scout,
     "builder": builder,
 }
@@ -253,6 +254,33 @@ class SessionManager:
             st.stop_flag.set()
             st.handle.progress = "stopping…"
             return True
+
+    def inject(self, session_id: str | None, body: str, *, tag: str = "NOTE",
+               author: str = "human") -> dict[str, Any]:
+        """Human-in-the-loop: post a message onto a session's blackboard mid-flight.
+
+        The next agent turn re-observes the board and sees it immediately -- no
+        pause required. Works on running and stopped sessions alike (a stopped
+        session's board keeps the message for its next resume).
+        """
+        with self._lock:
+            st = self._get(session_id)
+            if st is None:
+                return {"ok": False, "error": "no such session"}
+            text = (body or "").strip()
+            if not text:
+                return {"ok": False, "error": "empty body"}
+            try:
+                tag_obj = Tag.parse(tag)
+            except Exception:
+                tag_obj = Tag.NOTE
+            try:
+                cur_round = int(str(st.handle.progress).rsplit(" ", 1)[-1])
+            except Exception:
+                cur_round = 0
+            msg = st.board.post(
+                Message(tag=tag_obj, body=text, author=author, round_no=cur_round))
+            return {"ok": True, "id": msg.id, "round_no": msg.round_no}
 
     def _trim_finished(self) -> None:
         finished = [sid for sid in self._order if self._sessions[sid].handle.status != "running"]

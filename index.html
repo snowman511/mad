@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mad · 多 Agent 讨论看板</title>
+  <link rel="stylesheet" href="web/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">mad</div>
+        <div class="brand-text">
+          <h1>多 Agent 讨论看板</h1>
+          <p class="sub">共享黑板 · 强制对抗 · 机器验证闸门</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="runtime-chip-wrap">
+          <button id="runtime-chip" class="runtime-chip" type="button" aria-haspopup="dialog">
+            <span class="rc-logo" id="rc-logo">K</span>
+            <span class="rc-text">
+              <span class="rc-mode" id="rc-mode">本地 CLI</span>
+              <span class="rc-agent" id="rc-agent">检测中…</span>
+            </span>
+            <span class="rc-caret">▾</span>
+          </button>
+
+          <div id="runtime-panel" class="runtime-panel" hidden>
+            <div class="rp-title">模式</div>
+            <div class="seg" id="mode-seg">
+              <button class="seg-btn active" data-mode="local_cli" type="button">本地 CLI</button>
+              <button class="seg-btn" data-mode="api_key" type="button">自带 Key</button>
+            </div>
+
+            <div class="rp-title" id="rp-agent-title">代理</div>
+            <div class="agent-row" id="agent-row"></div>
+
+            <div class="rp-title">模型</div>
+            <select id="model-select" class="rp-select">
+              <option value="">Default (CLI config)</option>
+            </select>
+
+            <div id="api-key-fields" class="api-key-fields" hidden>
+              <div class="rp-title">API</div>
+              <input id="inp-base-url" class="rp-input" placeholder="Base URL（如 https://api.openai.com/v1）" />
+              <input id="inp-api-key" class="rp-input" type="password" placeholder="API Key（仅存本页内存）" />
+            </div>
+
+            <button id="btn-open-settings" class="rp-foot" type="button">⚙ 打开执行设置</button>
+          </div>
+        </div>
+
+        <button id="btn-new-session" class="btn primary" type="button">开始讨论</button>
+        <button id="btn-reload" class="btn ghost" type="button" title="重新拉取数据">刷新</button>
+        <button id="btn-demo" class="btn ghost" type="button" title="载入内置演示数据">演示数据</button>
+      </div>
+    </header>
+
+    <section class="task-bar">
+      <div class="task-label">TASK</div>
+      <div id="task-text" class="task-text">加载中…</div>
+    </section>
+
+    <section class="stats" id="stats">
+      <div class="stat"><div class="stat-k">消息</div><div class="stat-v" id="st-posts">—</div></div>
+      <div class="stat"><div class="stat-k">轮次</div><div class="stat-v" id="st-rounds">—</div></div>
+      <div class="stat danger"><div class="stat-k">永久负结果</div><div class="stat-v" id="st-dead">—</div></div>
+      <div class="stat warn"><div class="stat-k">未被挑战</div><div class="stat-v" id="st-uncontested">—</div></div>
+      <div class="stat"><div class="stat-k">未决问题</div><div class="stat-v" id="st-questions">—</div></div>
+      <div class="stat verdict" id="st-verdict-wrap">
+        <div class="stat-k">验证闸门</div>
+        <div class="stat-v" id="st-verdict">—</div>
+      </div>
+    </section>
+
+    <div class="verdict-banner" id="verdict-banner" hidden></div>
+
+    <main class="layout">
+      <aside class="debates">
+        <div class="panel">
+          <div class="panel-title">辩论历史</div>
+          <button class="btn primary wide" id="btn-new-debate" type="button">＋ 新辩论</button>
+          <div id="debate-list" class="debate-list"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">插入想法（人类参与者）</div>
+          <textarea id="inject-body" rows="4"
+            placeholder="以人类身份写入黑板：补充领域知识、否定方向、下达指令……下一个 agent 立即可见，且同样接受质疑。"></textarea>
+          <div class="inject-row">
+            <select id="inject-tag" class="rp-select">
+              <option value="NOTE">NOTE 备注</option>
+              <option value="CLAIM">CLAIM 主张</option>
+              <option value="EVIDENCE">EVIDENCE 证据</option>
+            </select>
+            <button id="btn-inject" class="btn primary" type="button">插入黑板</button>
+          </div>
+        </div>
+      </aside>
+      <aside class="sidebar">
+        <div class="panel">
+          <div class="panel-title">按标签筛选</div>
+          <div class="tag-filters" id="tag-filters"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">图例</div>
+          <ul class="legend">
+            <li><span class="dot t-COUNTEREXAMPLE"></span>反例 / 攻击 COUNTEREXAMPLE</li>
+            <li><span class="dot t-DEAD_END"></span>死胡同·不可删 DEAD_END</li>
+            <li><span class="dot t-CLAIM"></span>待审主张 CLAIM</li>
+            <li><span class="dot t-UNCONTESTED"></span>逾期未攻 UNCONTESTED</li>
+            <li><span class="dot t-VERDICT"></span>机器判决 VERDICT</li>
+            <li><span class="dot t-EXPERIMENT_RESULT"></span>实验 / 基线结果</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <div class="panel-title">停止原因</div>
+          <div id="stop-reason" class="mono">—</div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">数据源</div>
+          <div id="data-source" class="mono small">—</div>
+        </div>
+      </aside>
+
+      <section class="board">
+        <div class="board-head">
+          <h2>黑板时间线</h2>
+          <div class="board-meta">
+            <button id="btn-resume" class="btn ghost" type="button" hidden>▶ 继续辩论</button>
+            <label class="check"><input type="checkbox" id="show-system" checked /> 显示 SYSTEM</label>
+            <label class="check"><input type="checkbox" id="only-claims" /> 仅 claim 线程</label>
+          </div>
+        </div>
+        <div id="timeline" class="timeline"></div>
+      </section>
+
+      <aside class="right">
+        <div class="panel sticky">
+          <div class="panel-title">永久负结果</div>
+          <div id="dead-ends" class="stack"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">最佳证据结果</div>
+          <div id="best-results" class="stack"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">未决问题</div>
+          <div id="open-questions" class="stack"></div>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <span>mad framework</span>
+      <span class="sep">·</span>
+      <span>DEAD_END / COUNTEREXAMPLE 不可删除</span>
+      <span class="sep">·</span>
+      <span>结论由 Verifier 决定，不是投票</span>
+    </footer>
+  </div>
+
+  <!-- 新建会话 -->
+  <div id="session-modal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>开始一场多 Agent 讨论</h3>
+        <button class="icon-btn" id="session-close" type="button">✕</button>
+      </div>
+      <label class="field">
+        <span>研究任务</span>
+        <textarea id="session-task" rows="4" placeholder="例如：用 IMU+PPG 识别进食时间段 [onset, offset]，优化 event-F1@±30s…"></textarea>
+      </label>
+      <div class="field-grid">
+        <label class="field">
+          <span>角色</span>
+          <div class="role-checks" id="role-checks">
+            <label><input type="checkbox" value="explorer" checked /> 探索者 Explorer</label>
+            <label><input type="checkbox" value="skeptic" checked /> 怀疑者 Skeptic</label>
+            <label><input type="checkbox" value="modeler" checked /> 建模者 Modeler</label>
+            <label><input type="checkbox" value="experimenter" checked /> 实验者 Experimenter</label>
+            <label><input type="checkbox" value="reviewer" checked /> 评审 Reviewer</label>
+          </div>
+        </label>
+        <div class="field-col">
+          <label class="field">
+            <span>最大轮次</span>
+            <input id="session-rounds" type="number" min="1" max="50" value="6" />
+          </label>
+          <label class="field">
+            <span>挑战宽限（轮）</span>
+            <input id="session-grace" type="number" min="1" max="10" value="2" />
+          </label>
+          <label class="field check-line">
+            <input id="session-require-gate" type="checkbox" checked />
+            <span>启用 Verifier 闸门</span>
+          </label>
+        </div>
+      </div>
+      <div class="field">
+        <span>验证器（JSON，可空 = 仅讨论）</span>
+        <textarea id="session-verifier" rows="3" spellcheck="false">{ "kind": "null" }</textarea>
+      </div>
+      <div class="runtime-summary" id="runtime-summary"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="session-cancel" type="button">取消</button>
+        <button class="btn primary" id="session-start" type="button">开跑</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 执行设置 -->
+  <div id="settings-modal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>执行设置</h3>
+        <button class="icon-btn" id="settings-close" type="button">✕</button>
+      </div>
+      <label class="field">
+        <span>默认模式</span>
+        <select id="set-mode" class="rp-select">
+          <option value="local_cli">本地 CLI</option>
+          <option value="api_key">自带 Key</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>默认代理</span>
+        <select id="set-agent" class="rp-select"></select>
+      </label>
+      <label class="field">
+        <span>CLI 工作目录（角色可在此跑实验）</span>
+        <input id="set-cwd" class="rp-input" placeholder="留空 = 当前服务目录" />
+      </label>
+      <label class="field">
+        <span>单次调用超时（秒）</span>
+        <input id="set-timeout" class="rp-input" type="number" min="10" max="600" value="180" />
+      </label>
+      <div class="modal-actions">
+        <button class="btn primary" id="settings-save" type="button">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="web/demo-data.js"></script>
+  <script src="web/app.js"></script>
+</body>
+</html>

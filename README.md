@@ -146,6 +146,13 @@ metric-mismatch overclaims.
 5. **Everything is a claim.** Even the operator's own measurements are treated as
    unverified evidence until the gate rules on them.
 
+## Documentation
+
+**[docs/USAGE.md](docs/USAGE.md)** — the full usage guide: a complete walkthrough with
+real output, roles reference, how to write your own objective gate (ScriptVerifier
+tutorial with runnable code), runtime backends, web dashboard guide, CLI and session
+config reference.
+
 ## Repository layout
 
 ```

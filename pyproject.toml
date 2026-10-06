@@ -1,0 +1,26 @@
+[project]
+name = "mad"
+version = "0.1.0"
+description = "Multi-Agent Discussion framework: shared blackboard, forced adversarial review, objective verification gates"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+llm = ["httpx>=0.27"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+mad = "mad.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

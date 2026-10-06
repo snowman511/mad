@@ -1,0 +1,15 @@
+{
+  "task": "On the fixed sparse-graph workload inside benchmarks/sssp_bench.py (harness-owned graph family), find a configuration that beats the canonical Dijkstra baseline (dijkstra_heap, full exploration). Score = baseline_time / candidate_time. Goal: measured speedup >= 2.0, then stop. Known impls: dijkstra_naive, dijkstra_naive_early, dijkstra_heap, dijkstra_heap_early, bidirectional. Config keys: impl, expected (your honest prediction, e.g. {\"speedup\": 1.5}), note — nothing else; the workload itself is fixed. Overclaiming an expected speedup is flagged as a permanent COUNTEREXAMPLE.",
+  "roles": ["benchmark_proposer", "skeptic", "modeler", "literature_scout"],
+  "max_rounds": 8,
+  "challenge_grace_rounds": 3,
+  "stall_rounds": 4,
+  "max_messages": 120,
+  "require_verifier_gate": true,
+  "no_improvement_rounds": 3,
+  "improvement_delta": 0.02,
+  "target_score": 2.0,
+  "runtime": { "kind": "local_cli", "agent": "claude" },
+  "verifier": { "kind": "script", "command": ["python", "benchmarks/sssp_bench.py"], "cwd": ".", "timeout": 600 },
+  "memory": "benchmarks/sssp_memory.json"
+}

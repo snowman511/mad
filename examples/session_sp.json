@@ -1,0 +1,17 @@
+{
+  "task": "Improve single-source shortest paths on non-negative weighted digraphs in the sparse regime m = O(n log^{3/4} n). Record every failed approach. Target a provable asymptotic improvement or a sharp lower bound.",
+  "roles": ["explorer", "skeptic", "modeler", "experimenter"],
+  "max_rounds": 8,
+  "challenge_grace_rounds": 2,
+  "stall_rounds": 3,
+  "require_verifier_gate": true,
+  "runtime": {
+    "kind": "openai",
+    "model": "gpt-4o-mini",
+    "base_url": "https://api.openai.com/v1"
+  },
+  "verifier": {
+    "kind": "script",
+    "command": ["python", "examples/verify_sp.py"]
+  }
+}
